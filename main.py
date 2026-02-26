@@ -1,11 +1,21 @@
-from flask import Flask
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 
 
 @app.route("/ping")
 def pong():
-    return "pong"
+    return jsonify({"result": "pong"})
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Resource not found"}), 404
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    return jsonify({"error": "Internal Server Error", "message": str(e)}), 500
 
 
 def main():

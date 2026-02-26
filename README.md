@@ -3,5 +3,6 @@
 
 ```
 make install
+make test
 make run
 ```
