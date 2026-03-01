@@ -6,4 +6,4 @@ run:
 
 test:
 	uv run ruff check
-	uv run pytest
+	uv run pytest -v
