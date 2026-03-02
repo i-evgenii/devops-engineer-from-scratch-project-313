@@ -80,3 +80,23 @@ def test_delete_link(client):
 
     get_res = client.get(f"/api/links/{created['id']}")
     assert get_res.status_code == 404
+
+
+def test_get_links_pagination(client):
+    for i in range(15):
+        client.post(
+            "/api/links",
+            json={
+                "original_url": f"https://hexlet.io/long_{i}",
+                "short_name": f"short_{i}",
+            },
+        )
+
+    response = client.get("/api/links?range=[5,10]")
+
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert len(data) == 5
+    assert "Content-Range" in response.headers
+    assert response.headers["Content-Range"].startswith("links 5-10/")

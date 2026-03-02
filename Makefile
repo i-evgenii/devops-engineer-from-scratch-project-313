@@ -7,3 +7,6 @@ run:
 test:
 	uv run ruff check
 	uv run pytest -v
+
+ui:
+	npm run dev

@@ -8,3 +8,6 @@ make install
 make test
 make run
 ```
+
+docker build -t crud-app .
+docker run -p 5173:5173 -p 8080:8080 --env-file .env crud-app
