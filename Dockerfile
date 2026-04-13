@@ -1,19 +1,34 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM node:20-slim AS frontend-builder
 
-RUN apt-get update && apt-get install -y nodejs npm nginx curl && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+
+COPY package.json package-lock.json ./
+
+RUN npm install
+
+COPY . .
+
+RUN mkdir -p /dist && cp -r ./node_modules/@hexlet/project-devops-deploy-crud-frontend/dist/. /dist/
+
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+
+RUN apt-get update && apt-get install -y nginx curl nodejs npm && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY uv.lock pyproject.toml package.json package-lock.json* /app/
 
 RUN uv sync --frozen --no-dev
+
 RUN npm install
 
-COPY . /app
-COPY nginx.conf /etc/nginx/sites-available/default
+COPY . .
 
-RUN mkdir -p /app/public && \
-    cp -r ./node_modules/@hexlet/project-devops-deploy-crud-frontend/dist/. /app/public/
+RUN mkdir -p /app/public
+
+COPY --from=frontend-builder /dist /app/public
+
+COPY nginx.conf /etc/nginx/sites-available/default
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV FLASK_RUN_HOST=0.0.0.0

@@ -1,55 +1,23 @@
 import json
-import os
-from typing import Optional
 
-import sentry_sdk
-from flask import Flask, abort, jsonify, make_response, request
-from flask_cors import CORS
-from sentry_sdk.integrations.flask import FlaskIntegration
-from sqlmodel import Field, Session, SQLModel, create_engine, func, select
-
-sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN"),
-    integrations=[FlaskIntegration()],
-    traces_sample_rate=1.0,
+from flask import (
+    Blueprint,
+    abort,
+    jsonify,
+    make_response,
+    request,
 )
+from sqlmodel import Session, func, select  # Добавлен func
 
+from app.database import engine
+from app.models import Link
 
-class Link(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    original_url: str
-    short_name: str
-    short_url: str
-
-
-database_url = os.getenv("DATABASE_URL", "sqlite:///database.db").replace(
-    "postgres://", "postgresql://", 1
-)
-engine = create_engine(database_url)
-
-
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
-
-
-app = Flask(__name__)
-
-CORS(app, expose_headers=["Content-Range"])
-
-with app.app_context():
-    create_db_and_tables()
-
+api_bp = Blueprint('api', __name__)
 
 def get_short_url(short_name):
     return f"https://short.io/{short_name}"
 
-
-@app.route("/ping")
-def pong():
-    return jsonify({"result": "pong"})
-
-
-@app.route("/api/links", methods=["GET"])
+@api_bp.route("/links", methods=["GET"])
 def get_links():
     range_param = request.args.get("range")
 
@@ -82,7 +50,7 @@ def get_links():
         return response, 200
 
 
-@app.route("/api/links", methods=["POST"])
+@api_bp.route("/links", methods=["POST"])
 def create_link():
     data = request.get_json() or {}
     if "original_url" not in data or "short_name" not in data:
@@ -100,7 +68,7 @@ def create_link():
         return jsonify(new_link.model_dump()), 201
 
 
-@app.route("/api/links/<int:link_id>", methods=["GET"])
+@api_bp.route("/links/<int:link_id>", methods=["GET"])
 def get_link(link_id):
     with Session(engine) as session:
         link = session.get(Link, link_id)
@@ -109,7 +77,7 @@ def get_link(link_id):
         return jsonify(link.model_dump()), 200
 
 
-@app.route("/api/links/<int:link_id>", methods=["PUT"])
+@api_bp.route("/links/<int:link_id>", methods=["PUT"])
 def update_link(link_id):
     data = request.get_json() or {}
     with Session(engine) as session:
@@ -127,7 +95,7 @@ def update_link(link_id):
         return jsonify(link.model_dump()), 200
 
 
-@app.route("/api/links/<int:link_id>", methods=["DELETE"])
+@api_bp.route("/links/<int:link_id>", methods=["DELETE"])
 def delete_link(link_id):
     with Session(engine) as session:
         link = session.get(Link, link_id)
@@ -136,23 +104,3 @@ def delete_link(link_id):
         session.delete(link)
         session.commit()
         return "", 204
-
-
-@app.errorhandler(404)
-def not_found(e):
-    return jsonify({"error": "Resource not found"}), 404
-
-
-@app.errorhandler(Exception)
-def handle_exception(e):
-    return jsonify({"error": "Internal Server Error", "message": str(e)}), 500
-
-
-def main():
-    print("Hello from devops-engineer-from-scratch-project-313!")
-    port = int(os.getenv("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=True)
-
-
-if __name__ == "__main__":
-    main()

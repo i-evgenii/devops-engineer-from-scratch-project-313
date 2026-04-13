@@ -1,7 +1,7 @@
 import pytest
 from sqlmodel import SQLModel
 
-from main import app, engine
+from app.main import app, engine
 
 
 @pytest.fixture(autouse=True)
