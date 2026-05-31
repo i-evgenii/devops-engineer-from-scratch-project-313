@@ -33,10 +33,6 @@ COPY nginx.conf /etc/nginx/sites-available/default
 ENV PATH="/app/.venv/bin:$PATH"
 ENV FLASK_RUN_HOST=0.0.0.0
 
-# EXPOSE 5173 8080
-
-# CMD ["npm", "run", "dev"]
-
 EXPOSE 80
 
 CMD ["npm", "run", "prod"]
