@@ -32,7 +32,8 @@ with app.app_context():
 
 @app.route("/ping")
 def pong():
-    return jsonify({"result": "pong"})
+    # return jsonify({"result": "pong"})
+    return "pong"
 
 
 @app.errorhandler(404)

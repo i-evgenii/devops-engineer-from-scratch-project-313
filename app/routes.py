@@ -17,7 +17,7 @@ api_bp = Blueprint("api", __name__)
 
 
 def get_short_url(short_name):
-    return f"https://short.io/{short_name}"
+    return f"https://short.io/r/{short_name}"
 
 
 def get_paginated_links(range_param: Optional[str]) -> Tuple[List[Link], int, int]:
@@ -86,15 +86,35 @@ def get_link(link_id):
 
 @api_bp.route("/links/<int:link_id>", methods=["PUT"])
 def update_link(link_id):
-    data = request.get_json() or {}
+    data = request.get_json()
+    if data is None:
+        abort(400, description="Request body must be JSON")
+    if not isinstance(data, dict):
+        abort(400, description="JSON body must be an object")
+
+    if not data:
+        abort(422, description="At least one field to update is required")
+
+    if "original_url" in data:
+        if (
+            not isinstance(data["original_url"], str)
+            or not data["original_url"].strip()
+        ):
+            abort(422, description="original_url must be a non-empty string")
+    if "short_name" in data:
+        if not isinstance(data["short_name"], str) or not data["short_name"].strip():
+            abort(422, description="short_name must be a non-empty string")
+
     with Session(engine) as session:
         link = session.get(Link, link_id)
         if not link:
             abort(404)
 
-        link.original_url = data.get("original_url", link.original_url)
-        link.short_name = data.get("short_name", link.short_name)
-        link.short_url = get_short_url(link.short_name)
+        if "original_url" in data:
+            link.original_url = data["original_url"]
+        if "short_name" in data:
+            link.short_name = data["short_name"]
+            link.short_url = get_short_url(link.short_name)
 
         session.add(link)
         session.commit()
