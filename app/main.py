@@ -50,13 +50,15 @@ def bad_request(e):
 
 @app.errorhandler(422)
 def unprocessable(e):
-    return jsonify(
-        {
-            "detail": str(e.description)
-            if hasattr(e, "description")
-            else "Unprocessable entity"
-        }
-    ), 422
+    detail = (
+        e.description
+        if hasattr(e, "description")
+        else {"error": "Unprocessable entity"}
+    )
+    if isinstance(detail, dict):
+        return jsonify(detail), 422
+    else:
+        return jsonify({"detail": detail}), 422
 
 
 @app.errorhandler(Exception)

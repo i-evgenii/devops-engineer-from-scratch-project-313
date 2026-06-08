@@ -86,28 +86,27 @@ def get_link(link_id):
 
 @api_bp.route("/links/<int:link_id>", methods=["PUT"])
 def update_link(link_id):
-    data = request.get_json()
     try:
-        data = request.get_json(silent=True)
+        data = request.get_json()
     except Exception:
-        abort(422, description="Invalid JSON body")
-    
+        abort(422, description={"error": "Invalid JSON body"})
+
     if data is None:
-        abort(422, description="Request body must be valid JSON")
+        abort(422, description={"error": "Request body must be valid JSON"})
     if not isinstance(data, dict):
-        abort(422, description="JSON body must be an object")
+        abort(422, description={"error": "JSON body must be an object"})
     if not data:
-        abort(422, description="At least one field to update is required")
+        abort(422, description={"error": "At least one field to update is required"})
 
     if "original_url" in data:
         if (
             not isinstance(data["original_url"], str)
             or not data["original_url"].strip()
         ):
-            abort(422, description="original_url must be a non-empty string")
+            abort(422, description={"error": "original_url must be a non-empty string"})
     if "short_name" in data:
         if not isinstance(data["short_name"], str) or not data["short_name"].strip():
-            abort(422, description="short_name must be a non-empty string")
+            abort(422, description={"error": "short_name must be a non-empty string"})
 
     with Session(engine) as session:
         link = session.get(Link, link_id)

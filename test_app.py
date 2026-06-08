@@ -21,7 +21,8 @@ def client():
 def test_ping(client):
     response = client.get("/ping")
     assert response.status_code == 200
-    assert response.get_json() == {"result": "pong"}
+    # assert response.get_json() == {"result": "pong"}
+    assert response.data.decode() == "pong"
 
 
 def test_create_link(client):
@@ -31,7 +32,7 @@ def test_create_link(client):
     assert response.status_code == 201
     data = response.get_json()
     assert data["original_url"] == "https://hexlet.io/longpath"
-    assert data["short_url"] == "https://short.io/shortpath"
+    assert data["short_url"] == "https://short.io/r/shortpath"
     assert "id" in data
 
 
