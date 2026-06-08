@@ -89,26 +89,30 @@ def update_link(link_id):
     try:
         data = request.get_json()
     except Exception:
-        abort(422, description={"detail": "Invalid JSON body"})
+        return jsonify({"detail": {"error": "Invalid JSON body"}}), 422
 
     if data is None:
-        abort(422, description={"detail": "Request body must be valid JSON"})
+        return jsonify({"detail": {"error": "Request body must be valid JSON"}}), 422
     if not isinstance(data, dict):
-        abort(422, description={"detail": "JSON body must be an object"})
+        return jsonify({"detail": {"error": "JSON body must be an object"}}), 422
     if not data:
-        abort(422, description={"detail": "At least one field to update is required"})
+        return jsonify(
+            {"detail": {"error": "At least one field to update is required"}}
+        ), 422
 
     if "original_url" in data:
         if (
             not isinstance(data["original_url"], str)
             or not data["original_url"].strip()
         ):
-            abort(
-                422, description={"detail": "original_url must be a non-empty string"}
-            )
+            return jsonify(
+                {"detail": {"error": "original_url must be a non-empty string"}}
+            ), 422
     if "short_name" in data:
         if not isinstance(data["short_name"], str) or not data["short_name"].strip():
-            abort(422, description={"detail": "short_name must be a non-empty string"})
+            return jsonify(
+                {"detail": {"error": "short_name must be a non-empty string"}}
+            ), 422
 
     with Session(engine) as session:
         link = session.get(Link, link_id)
