@@ -10,42 +10,80 @@ from flask import (
 )
 from sqlmodel import Session, func, select
 
-from app.database import engine
+from app.database import with_session
 from app.models import Link
 
 api_bp = Blueprint("api", __name__)
 
 
-def get_short_url(short_name):
+def get_short_url(short_name: str) -> str:
     return f"https://short.io/r/{short_name}"
 
 
-def get_paginated_links(range_param: Optional[str]) -> Tuple[List[Link], int, int]:
-    with Session(engine) as session:
-        total_count = session.exec(select(func.count()).select_from(Link)).one()
-        statement = select(Link)
+def get_paginated_links_db(
+    session: Session, range_param: Optional[str]
+) -> Tuple[List[Link], int, int]:
+    total_count = session.exec(select(func.count()).select_from(Link)).one()
+    statement = select(Link)
+    start = 0
+    if range_param:
+        try:
+            range_list = json.loads(range_param)
+            start = range_list[0]
+            end = range_list[1]
+            limit = end - start
+            statement = statement.offset(start).limit(limit)
+        except (ValueError, IndexError, TypeError):
+            abort(400, description="Invalid range format. Use [start, end]")
+    links = session.exec(statement).all()
+    return links, start, total_count
 
-        start = 0
-        if range_param:
-            try:
-                range_list = json.loads(range_param)
-                start = range_list[0]
-                end = range_list[1]
 
-                limit = end - start
-                statement = statement.offset(start).limit(limit)
-            except (ValueError, IndexError, TypeError):
-                abort(400, description="Invalid range format. Use [start, end]")
+def get_link_db(session: Session, link_id: int) -> Optional[Link]:
+    return session.get(Link, link_id)
 
-        links = session.exec(statement).all()
-        return links, start, total_count
+
+def create_link_db(session: Session, data: dict) -> Link:
+    new_link = Link(
+        original_url=data["original_url"],
+        short_name=data["short_name"],
+        short_url=get_short_url(data["short_name"]),
+    )
+    session.add(new_link)
+    session.commit()
+    session.refresh(new_link)
+    return new_link
+
+
+def update_link_db(session: Session, link_id: int, data: dict) -> Optional[Link]:
+    link = session.get(Link, link_id)
+    if not link:
+        return None
+    if "original_url" in data:
+        link.original_url = data["original_url"]
+    if "short_name" in data:
+        link.short_name = data["short_name"]
+        link.short_url = get_short_url(link.short_name)
+    session.add(link)
+    session.commit()
+    session.refresh(link)
+    return link
+
+
+def delete_link_db(session: Session, link_id: int) -> bool:
+    link = session.get(Link, link_id)
+    if not link:
+        return False
+    session.delete(link)
+    session.commit()
+    return True
 
 
 @api_bp.route("/links", methods=["GET"])
-def get_links():
+@with_session
+def get_links(session: Session):
     range_param = request.args.get("range")
-
-    links, start, total_count = get_paginated_links(range_param)
+    links, start, total_count = get_paginated_links_db(session, range_param)
 
     response_data = [link.model_dump() for link in links]
     response = make_response(jsonify(response_data))
@@ -53,39 +91,32 @@ def get_links():
     actual_end = start + len(links)
     response.headers["Content-Range"] = f"links {start}-{actual_end}/{total_count}"
     response.headers["Access-Control-Expose-Headers"] = "Content-Range"
-
     return response, 200
 
 
 @api_bp.route("/links", methods=["POST"])
-def create_link():
+@with_session
+def create_link(session: Session):
     data = request.get_json() or {}
     if "original_url" not in data or "short_name" not in data:
         abort(422, description="Missing fields")
 
-    new_link = Link(
-        original_url=data["original_url"],
-        short_name=data["short_name"],
-        short_url=get_short_url(data["short_name"]),
-    )
-    with Session(engine) as session:
-        session.add(new_link)
-        session.commit()
-        session.refresh(new_link)
-        return jsonify(new_link.model_dump()), 201
+    new_link = create_link_db(session, data)
+    return jsonify(new_link.model_dump()), 201
 
 
 @api_bp.route("/links/<int:link_id>", methods=["GET"])
-def get_link(link_id):
-    with Session(engine) as session:
-        link = session.get(Link, link_id)
-        if not link:
-            abort(404)
-        return jsonify(link.model_dump()), 200
+@with_session
+def get_link(session: Session, link_id: int):
+    link = get_link_db(session, link_id)
+    if not link:
+        abort(404)
+    return jsonify(link.model_dump()), 200
 
 
 @api_bp.route("/links/<int:link_id>", methods=["PUT"])
-def update_link(link_id):
+@with_session
+def update_link(session: Session, link_id: int):
     try:
         data = request.get_json()
     except Exception:
@@ -114,29 +145,16 @@ def update_link(link_id):
                 {"detail": {"error": "short_name must be a non-empty string"}}
             ), 422
 
-    with Session(engine) as session:
-        link = session.get(Link, link_id)
-        if not link:
-            abort(404)
-
-        if "original_url" in data:
-            link.original_url = data["original_url"]
-        if "short_name" in data:
-            link.short_name = data["short_name"]
-            link.short_url = get_short_url(link.short_name)
-
-        session.add(link)
-        session.commit()
-        session.refresh(link)
-        return jsonify(link.model_dump()), 200
+    updated_link = update_link_db(session, link_id, data)
+    if not updated_link:
+        abort(404)
+    return jsonify(updated_link.model_dump()), 200
 
 
 @api_bp.route("/links/<int:link_id>", methods=["DELETE"])
-def delete_link(link_id):
-    with Session(engine) as session:
-        link = session.get(Link, link_id)
-        if not link:
-            abort(404)
-        session.delete(link)
-        session.commit()
-        return "", 204
+@with_session
+def delete_link(session: Session, link_id: int):
+    deleted = delete_link_db(session, link_id)
+    if not deleted:
+        abort(404)
+    return "", 204
