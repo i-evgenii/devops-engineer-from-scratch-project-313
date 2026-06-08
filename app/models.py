@@ -8,4 +8,3 @@ class Link(SQLModel, table=True):
     original_url: str
     short_name: str
     short_url: str
-

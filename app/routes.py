@@ -13,10 +13,12 @@ from sqlmodel import Session, func, select
 from app.database import engine
 from app.models import Link
 
-api_bp = Blueprint('api', __name__)
+api_bp = Blueprint("api", __name__)
+
 
 def get_short_url(short_name):
     return f"https://short.io/{short_name}"
+
 
 def get_paginated_links(range_param: Optional[str]) -> Tuple[List[Link], int, int]:
     with Session(engine) as session:
@@ -42,7 +44,7 @@ def get_paginated_links(range_param: Optional[str]) -> Tuple[List[Link], int, in
 @api_bp.route("/links", methods=["GET"])
 def get_links():
     range_param = request.args.get("range")
-    
+
     links, start, total_count = get_paginated_links(range_param)
 
     response_data = [link.model_dump() for link in links]
@@ -59,7 +61,7 @@ def get_links():
 def create_link():
     data = request.get_json() or {}
     if "original_url" not in data or "short_name" not in data:
-        abort(400, description="Missing fields")
+        abort(422, description="Missing fields")
 
     new_link = Link(
         original_url=data["original_url"],
