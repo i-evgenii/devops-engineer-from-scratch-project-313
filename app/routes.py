@@ -87,11 +87,15 @@ def get_link(link_id):
 @api_bp.route("/links/<int:link_id>", methods=["PUT"])
 def update_link(link_id):
     data = request.get_json()
+    try:
+        data = request.get_json(silent=True)
+    except Exception:
+        abort(422, description="Invalid JSON body")
+    
     if data is None:
-        abort(400, description="Request body must be JSON")
+        abort(422, description="Request body must be valid JSON")
     if not isinstance(data, dict):
-        abort(400, description="JSON body must be an object")
-
+        abort(422, description="JSON body must be an object")
     if not data:
         abort(422, description="At least one field to update is required")
 
