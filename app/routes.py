@@ -103,7 +103,9 @@ def update_link(link_id):
             not isinstance(data["original_url"], str)
             or not data["original_url"].strip()
         ):
-            abort(422, description={"detail": "original_url must be a non-empty string"})
+            abort(
+                422, description={"detail": "original_url must be a non-empty string"}
+            )
     if "short_name" in data:
         if not isinstance(data["short_name"], str) or not data["short_name"].strip():
             abort(422, description={"detail": "short_name must be a non-empty string"})
