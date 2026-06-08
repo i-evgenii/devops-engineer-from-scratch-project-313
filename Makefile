@@ -2,7 +2,7 @@ install:
 	uv sync
 
 run:
-	uv run flask --app app.main run --port 8080
+	uv run flask --app app.main run --host 0.0.0.0 --port 8080
 
 test:
 	uv run ruff check
